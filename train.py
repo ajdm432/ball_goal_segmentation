@@ -125,10 +125,10 @@ def visualize(**images):
 def visual_eval(model_path):
     model = torch.load(model_path)
     preprocess = get_preprocessing_fn('mobilenet_v2', pretrained='imagenet')
-    test_dataset_vis = Dataset(
-        test_imgs,
-        classes=CLASSES,
-    )
+    # test_dataset_vis = Dataset(
+    #     test_imgs,
+    #     classes=CLASSES,
+    # )
 
     test_dataset = Dataset(
         test_imgs,
@@ -140,21 +140,29 @@ def visual_eval(model_path):
     for i in range(5):
         n = np.random.choice(len(test_dataset))
 
-        image_vis = test_dataset_vis[n][0].astype('uint8')
-        gt_mask_vis = test_dataset_vis[n][1].astype('uint8')
+        # image_vis = test_dataset_vis[n][0].astype('uint8')
+        # gt_mask_vis = test_dataset_vis[n][1].astype('uint8')
         image, gt_mask = test_dataset[n]
 
+        # gt_mask = gt_mask.squeeze()
 
-        gt_mask = gt_mask.squeeze()
-
-        x_tensor = torch.from_numpy(image).to(device).unsqueeze(0)
+        x_tensor = torch.as_tensor(image, device=device).unsqueeze(0)
         pr_mask = model.predict(x_tensor)
-        pr_mask = (pr_mask.squeeze().cpu().numpy().round())
-            
+        pr_mask = (pr_mask.squeeze().permute(1, 2, 0).cpu().numpy().round())
+    
+        # 3 channels for [background, ball, goal]
+        # Make separate mask for each channel
+        pr_mask_bg = pr_mask[:, :, 0]
+        pr_mask_ball = pr_mask[:, :, 1]
+        pr_mask_goal = pr_mask[:, :, 2]
+
+
         visualize(
-            image=image_vis, 
-            ground_truth_mask=gt_mask_vis, 
-            predicted_mask=pr_mask
+            image=image.transpose(1, 2, 0), 
+            ground_truth_mask=gt_mask.transpose(1, 2, 0), 
+            predicted_bg_mask=pr_mask_bg,
+            predicted_ball_mask=pr_mask_ball,
+            predicted_goal_mask=pr_mask_goal
         )
 
 if __name__ == "__main__":

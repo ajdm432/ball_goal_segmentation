@@ -3,6 +3,7 @@ import os
 import cv2
 import csv
 import numpy as np
+import torch
 from torch.utils.data import Dataset as BaseDataset
 import albumentations as albu
 import matplotlib.pyplot as plt
@@ -52,14 +53,14 @@ class Dataset(BaseDataset):
     def __getitem__(self, i):
 
         # read data
-        image = cv2.imread(self.images_fps[i])
+        image = cv2.imread(self.images_fps[i]) # [H, W, 3]
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(self.masks_fps[i], 0)
-
+        mask = cv2.imread(self.masks_fps[i], 0) # [H, W]
+        
         # extract certain classes from mask (e.g. cars)
         masks = [(mask == v) for v in self.class_values]
         mask = np.stack(masks, axis=-1).astype('float')
-        
+
         # apply augmentations
         if self.augmentation:
             sample = self.augmentation(image=image, mask=mask)
@@ -70,13 +71,20 @@ class Dataset(BaseDataset):
             sample = self.preprocessing(image=image, mask=mask)
             image, mask = sample['image'], sample['mask']
 
+        # Image [C, H, W] -> 0.-255. float32 -> RGB format
+        # Mask [Classes, H, W] -> 0. - 1. float32 -> RGB format
+        # cv2.imshow("image", image.transpose(1, 2, 0))
+        # cv2.imshow("mask", mask.transpose(1, 2, 0))
+        # cv2.waitKey(0)
         return image, mask
     
     def __len__(self):
         return len(self.img_ids)
     
 def to_tensor(x, **kwargs):
-    return x.transpose(2, 0, 1).astype('float32')
+    x = x.transpose(2, 0, 1).astype('float32')
+    # x = torch.as_tensor(x, device=torch.device('cuda'))
+    return x
     
 
 def get_training_augmentation():
@@ -96,7 +104,6 @@ def get_validation_augmentation():
     """Add paddings to make image shape divisible by 32"""
     test_transform = [
         albu.Resize(IM_H, IM_W),
-        albu.PadIfNeeded(IM_H, IM_W)
     ]
     return albu.Compose(test_transform)
 
@@ -112,7 +119,7 @@ def get_preprocessing(preprocessing_fn):
     """
 
     _transform = [
-        # albu.Lambda(image=preprocessing_fn),
+        albu.Lambda(image=preprocessing_fn),
         albu.Lambda(image=to_tensor, mask=to_tensor),
     ]
     return albu.Compose(_transform)
