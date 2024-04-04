@@ -76,6 +76,7 @@ class Dataset(BaseDataset):
         # cv2.imshow("image", image.transpose(1, 2, 0))
         # cv2.imshow("mask", mask.transpose(1, 2, 0))
         # cv2.waitKey(0)
+        image = image/255.
         return image, mask
     
     def __len__(self):
