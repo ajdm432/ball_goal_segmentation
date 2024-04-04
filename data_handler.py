@@ -8,7 +8,7 @@ import albumentations as albu
 import matplotlib.pyplot as plt
 
 IM_H = 128
-IM_W = 129
+IM_W = 128
 
 class Dataset(BaseDataset):
 
@@ -69,7 +69,7 @@ class Dataset(BaseDataset):
         if self.preprocessing:
             sample = self.preprocessing(image=image, mask=mask)
             image, mask = sample['image'], sample['mask']
-            
+
         return image, mask
     
     def __len__(self):
@@ -82,45 +82,21 @@ def to_tensor(x, **kwargs):
 def get_training_augmentation():
     train_transform = [
 
+        albu.Resize(IM_H, IM_W),
+
         albu.HorizontalFlip(p=0.5),
 
-        albu.ShiftScaleRotate(scale_limit=0.5, rotate_limit=0, shift_limit=0.1, p=1, border_mode=0),
+        albu.RandomGamma(p=0.7),
 
-        albu.PadIfNeeded(min_height=320, min_width=320, always_apply=True, border_mode=0),
-        albu.RandomCrop(height=320, width=320, always_apply=True),
-
-        albu.GaussNoise(p=0.2),
-        albu.Perspective(p=0.5),
-
-        albu.OneOf(
-            [
-                albu.CLAHE(p=1),
-                albu.RandomGamma(p=1),
-            ],
-            p=0.9,
-        ),
-
-        albu.OneOf(
-            [
-                albu.Blur(blur_limit=3, p=1),
-                albu.MotionBlur(blur_limit=3, p=1),
-            ],
-            p=0.9,
-        ),
-
-        albu.OneOf(
-            [
-                albu.HueSaturationValue(p=1),
-            ],
-            p=0.9,
-        ),
+        albu.Blur(blur_limit=3, p=0.7),
     ]
     return albu.Compose(train_transform)
 
 def get_validation_augmentation():
     """Add paddings to make image shape divisible by 32"""
     test_transform = [
-        albu.PadIfNeeded(384, 480)
+        albu.Resize(IM_H, IM_W),
+        albu.PadIfNeeded(IM_H, IM_W)
     ]
     return albu.Compose(test_transform)
 
@@ -136,7 +112,7 @@ def get_preprocessing(preprocessing_fn):
     """
 
     _transform = [
-        albu.Lambda(image=preprocessing_fn),
+        # albu.Lambda(image=preprocessing_fn),
         albu.Lambda(image=to_tensor, mask=to_tensor),
     ]
     return albu.Compose(_transform)
